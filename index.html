@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Ministry Master Ultra</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <style>
+        :root { --primary: #2563eb; --bg: #f8fafc; --card: #ffffff; --text: #1e293b; --border: #cbd5e1; --student: #8b5cf6; --success: #16a34a; --progress-bg: #e2e8f0; --warning: #f59e0b; --timer: #ef4444; }
+        body.dark-mode { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --border: #334155; --progress-bg: #334155; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; padding-bottom: 100px; transition: 0.3s; }
+        .container { width: 100%; max-width: 500px; margin: auto; }
+        
+        .auth-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 10px; background: var(--card); border-radius: 12px; border: 1px solid var(--border); }
+        #loginBtn { background: var(--primary); color: white; border: none; padding: 8px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        #logoutBtn { background: #64748b; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 0.7rem; cursor: pointer; }
+
+        .card { background: var(--card); padding: 1.2rem; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        input, select { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: var(--text); font-size: 1rem; box-sizing: border-box; }
+        button { padding: 12px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; color: white; width: 100%; margin-bottom: 5px; }
+        
+        .timer-display { font-size: 2.5rem; font-weight: 800; font-variant-numeric: tabular-nums; margin: 10px 0; color: var(--timer); text-align: center; }
+        .timer-controls { display: flex; gap: 10px; margin-bottom: 15px; }
+
+        .progress-track { width: 100%; height: 12px; background: var(--progress-bg); border-radius: 10px; overflow: hidden; margin-top: 8px; }
+        .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.5s; }
+        
+        .header-controls { display: flex; gap: 5px; margin-bottom: 15px; align-items: center; }
+        .header-controls select { border: none; background: transparent; font-size: 1.1rem; color: var(--primary); font-weight: 800; width: auto; margin: 0; }
+
+        .summary-card { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: var(--primary); color: white; padding: 1.2rem; border-radius: 15px; margin-bottom: 20px; text-align: center; }
+        .nav-bar { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--card); display: flex; justify-content: space-around; padding: 12px 0; padding-bottom: calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); z-index: 1000; }
+        .nav-btn { background: none; color: #64748b; font-size: 0.7rem; display: flex; flex-direction: column; align-items: center; border:none; width: 25%; }
+        .nav-btn.active { color: var(--primary); }
+        
+        .page { display: none; }
+        .page.active { display: block; }
+        
+        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 15px; overflow: hidden; margin-bottom: 15px;}
+        td, th { padding: 12px; border-bottom: 1px solid var(--border); font-size: 0.85rem; text-align: left; }
+
+        .student-checklist { max-height: 140px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; padding: 10px; margin-bottom: 10px; }
+        .checklist-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
+        .checklist-item input { width: auto; margin: 0; transform: scale(1.2); }
+
+        .toggle-container { display: flex; margin-bottom: 15px; background: var(--progress-bg); border-radius: 10px; padding: 4px; }
+        .toggle-btn { background: transparent; color: var(--text); padding: 8px; border-radius: 8px; font-size: 0.8rem; flex: 1; transition: 0.2s; cursor: pointer; border: none; margin-bottom: 0; }
+        .toggle-btn.active { background: var(--card); box-shadow: 0 2px 5px rgba(0,0,0,0.1); color: var(--primary); }
+
+        #exportBtn { background: var(--success); margin-top: 10px; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="auth-bar">
+        <div id="userInfo" style="display: none;">
+            <span id="userName" style="font-weight: bold; font-size: 0.9rem;"></span>
+            <button id="logoutBtn">Logout</button>
+        </div>
+        <button id="loginBtn">Login with Google</button>
+        <button onclick="toggleDark()" style="background:none; border:none; color:var(--text); font-size:1.2rem; width: auto;">🌓</button>
+    </div>
+
+    <div class="header-controls">
+        <select id="selMonth"></select>
+        <select id="selYear"></select>
+    </div>
+
+    <div id="workPage" class="page active">
+        <div class="card" style="border-bottom: 4px solid var(--timer);">
+            <div class="timer-display" id="display">00:00:00</div>
+            <div class="timer-controls">
+                <button id="startBtn" style="background:var(--success)">Start</button>
+                <button id="stopBtn" style="background:var(--timer)" disabled>Stop</button>
+                <button id="resetTimerBtn" style="background:var(--border); color:var(--text)">Clear</button>
+            </div>
+        </div>
+
+        <div class="card" style="padding: 10px;">
+            <div style="display:flex; justify-content:space-between; font-size:0.8rem; font-weight:bold;">
+                <span>Goal Progress</span>
+                <span id="setGoalBtn" style="color:var(--primary); cursor:pointer;">Goal: <span id="goalLabel">0</span>h</span>
+            </div>
+            <div class="progress-track"><div id="progressBar" class="progress-fill"></div></div>
+        </div>
+
+        <div class="summary-card">
+            <div><span id="totalH" style="font-size:1.5rem; font-weight:800;">0</span><br><small>HOURS</small></div>
+            <div><span id="totalB" style="font-size:1.5rem; font-weight:800;">0</span><br><small>STUDIES</small></div>
+        </div>
+
+        <div class="card">
+            <input type="date" id="workDate">
+            <input type="number" step="0.1" id="workHrs" placeholder="Hours (e.g. 1.5)">
+            <div class="student-checklist">
+                <small style="color:var(--primary); font-weight:bold;">Select Students:</small>
+                <div id="checklistContent"></div>
+            </div>
+            <button id="addWorkBtn" style="background:var(--primary)">Log Entry</button>
+        </div>
+        <table><tbody id="workTableBody"></tbody></table>
+    </div>
+
+    <div id="dirPage" class="page">
+        <div class="card">
+            <input type="text" id="dirSearch" placeholder="🔍 Search...">
+            <input type="text" id="dirName" placeholder="Name">
+            <input type="tel" id="dirPhone" placeholder="Phone">
+            <input type="text" id="dirLoc" placeholder="Address">
+            <button id="addDirBtn" style="background:var(--student)">Add Student</button>
+        </div>
+        <table><tbody id="dirTableBody"></tbody></table>
+    </div>
+
+    <div id="summaryPage" class="page">
+        <div class="toggle-container">
+            <button id="toggleCalendar" class="toggle-btn active">Calendar Year</button>
+            <button id="toggleService" class="toggle-btn">Service Year</button>
+        </div>
+        <table>
+            <thead><tr><th>Month</th><th>Hrs</th><th>B/S</th></tr></thead>
+            <tbody id="yearlyTableBody"></tbody>
+        </table>
+        <button id="exportBtn">📥 Export to CSV</button>
+    </div>
+
+    <nav class="nav-bar">
+        <button class="nav-btn active" data-page="work">📊<span>Work</span></button>
+        <button class="nav-btn" data-page="dir">📖<span>Directory</span></button>
+        <button class="nav-btn" data-page="summary">🗓️<span>Yearly</span></button>
+    </nav>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDOn3uwec_eWCTit25y-Yd8-o22cn15Q3E",
+        authDomain: "ministry-master.firebaseapp.com",
+        projectId: "ministry-master",
+        storageBucket: "ministry-master.firebasestorage.app",
+        messagingSenderId: "904454119966",
+        appId: "1:904454119966:web:726f4d6eb8e96038ac040f"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+
+    // Register Service Worker for PWA
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('SW Registered'))
+                .catch(err => console.log('SW Failed', err));
+        });
+    }
+
+    const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    let startTime, elapsedTime = 0, timerInterval;
+    let currentUser = null;
+    let currentViewType = 'calendar';
+
+    // Login Function
+    document.getElementById('loginBtn').onclick = () => {
+        signInWithPopup(auth, provider).catch(error => alert(error.message));
+    };
+
+    // Logout Function
+    document.getElementById('logoutBtn').onclick = () => {
+        signOut(auth).then(() => { location.reload(); });
+    };
+
+    // Toggle logic
+    document.getElementById('toggleCalendar').onclick = () => {
+        currentViewType = 'calendar';
+        document.getElementById('toggleCalendar').classList.add('active');
+        document.getElementById('toggleService').classList.remove('active');
+        updateYearlySummary();
+    };
+    document.getElementById('toggleService').onclick = () => {
+        currentViewType = 'service';
+        document.getElementById('toggleService').classList.add('active');
+        document.getElementById('toggleCalendar').classList.remove('active');
+        updateYearlySummary();
+    };
+
+    // CSV Export Logic
+    document.getElementById('exportBtn').onclick = () => {
+        const year = document.getElementById('selYear').value;
+        const typeLabel = currentViewType === 'calendar' ? 'Calendar_Year' : 'Service_Year';
+        let csvContent = "data:text/csv;charset=utf-8,Month,Year,Hours,Studies\n";
+        
+        const rows = document.querySelectorAll('#yearlyTableBody tr');
+        rows.forEach(row => {
+            if (row.cells.length < 3 || row.innerText.includes("TOTAL")) return;
+            const monthText = row.cells[0].innerText.replace(/\n/g, " ").trim();
+            const hours = row.cells[1].innerText.replace('h', '');
+            const studies = row.cells[2].innerText;
+            csvContent += `"${monthText}",${year},${hours},${studies}\n`;
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `Ministry_Report_${typeLabel}_${year}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    onAuthStateChanged(auth, (user) => {
+        currentUser = user;
+        if (user) {
+            document.getElementById('loginBtn').style.display = 'none';
+            document.getElementById('userInfo').style.display = 'flex';
+            document.getElementById('userName').innerText = user.displayName;
+        } else {
+            document.getElementById('loginBtn').style.display = 'block';
+            document.getElementById('userInfo').style.display = 'none';
+        }
+        loadMonthlyData();
+    });
+
+    // Timer functions
+    function updateDisplay() {
+        let diffInHrs = (Date.now() - startTime) / 3600000;
+        let hh = Math.floor(diffInHrs);
+        let mm = Math.floor((diffInHrs - hh) * 60);
+        let ss = Math.floor(((diffInHrs - hh) * 60 - mm) * 60);
+        document.getElementById("display").innerText = `${hh.toString().padStart(2, "0")}:${mm.toString().padStart(2, "0")}:${ss.toString().padStart(2, "0")}`;
+    }
+
+    document.getElementById('startBtn').onclick = () => {
+        startTime = Date.now() - elapsedTime;
+        timerInterval = setInterval(updateDisplay, 1000);
+        document.getElementById('startBtn').disabled = true;
+        document.getElementById('stopBtn').disabled = false;
+    };
+
+    document.getElementById('stopBtn').onclick = () => {
+        clearInterval(timerInterval);
+        elapsedTime = Date.now() - startTime;
+        document.getElementById('workHrs').value = (elapsedTime / 3600000).toFixed(1);
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('stopBtn').disabled = true;
+    };
+
+    document.getElementById('resetTimerBtn').onclick = () => {
+        clearInterval(timerInterval);
+        elapsedTime = 0;
+        document.getElementById("display").innerText = "00:00:00";
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('stopBtn').disabled = true;
+    };
+
+    // Yearly Summary Logic
+    async function updateYearlySummary() {
+        const tbody = document.getElementById('yearlyTableBody');
+        const year = parseInt(document.getElementById('selYear').value);
+        tbody.innerHTML = '';
+        
+        let grandTotalH = 0;
+        let grandTotalB = 0;
+
+        let monthsToCalculate = [];
+        if (currentViewType === 'calendar') {
+            for (let i = 0; i < 12; i++) monthsToCalculate.push({ m: i, y: year });
+        } else {
+            for (let i = 8; i <= 11; i++) monthsToCalculate.push({ m: i, y: year - 1 });
+            for (let i = 0; i <= 7; i++) monthsToCalculate.push({ m: i, y: year });
+        }
+
+        for (let item of monthsToCalculate) {
+            const key = `work_${item.y}_${item.m}`;
+            let data = JSON.parse(localStorage.getItem(key) || '[]');
+            let monthH = 0, monthB = 0;
+            
+            data.forEach(entry => {
+                monthH += parseFloat(entry.h || 0);
+                monthB += parseInt(entry.b || 0);
+            });
+
+            grandTotalH += monthH;
+            grandTotalB += monthB;
+
+            const row = tbody.insertRow();
+            row.innerHTML = `<td>${MONTHS[item.m]} <small style="opacity:0.5">${item.y}</small></td><td>${monthH.toFixed(1)}h</td><td>${monthB}</td>`;
+        }
+
+        const footer = tbody.insertRow();
+        footer.style.fontWeight = "bold";
+        footer.style.background = "var(--progress-bg)";
+        footer.innerHTML = `<td>TOTAL</td><td>${grandTotalH.toFixed(1)}h</td><td>${grandTotalB}</td>`;
+    }
+
+    // Directory functions
+    document.getElementById('addDirBtn').onclick = () => {
+        const name = document.getElementById('dirName').value;
+        const phone = document.getElementById('dirPhone').value;
+        const loc = document.getElementById('dirLoc').value;
+        if(!name) return alert("Please enter a name");
+        let students = JSON.parse(localStorage.getItem('u_dir') || '[]');
+        students.push({ n: name, p: phone, l: loc });
+        localStorage.setItem('u_dir', JSON.stringify(students));
+        loadDirectory();
+        updateDropdown();
+    };
+
+    function loadDirectory() {
+        const tbody = document.getElementById('dirTableBody');
+        const students = JSON.parse(localStorage.getItem('u_dir') || '[]');
+        tbody.innerHTML = '';
+        students.forEach((s, index) => {
+            const row = tbody.insertRow();
+            row.innerHTML = `<td><b>${s.n}</b><br><small>${s.p || ''}</small></td><td>${s.l || ''}</td><td><button class="delBtn" style="background:red; padding:2px 8px;">✕</button></td>`;
+            row.querySelector('.delBtn').onclick = () => {
+                students.splice(index, 1);
+                localStorage.setItem('u_dir', JSON.stringify(students));
+                loadDirectory();
+                updateDropdown();
+            };
+        });
+    }
+
+    // Work Data functions
+    async function saveWork() {
+        const m = document.getElementById('selMonth').value;
+        const y = document.getElementById('selYear').value;
+        const key = `work_${y}_${m}`;
+        const rows = document.querySelectorAll('#workTableBody tr');
+        let data = [];
+        let th = 0, tb = 0;
+        rows.forEach(tr => {
+            const h = parseFloat(tr.cells[1].innerText);
+            const b = parseInt(tr.cells[3].innerText);
+            th += h; tb += b;
+            data.push({ d: tr.cells[0].innerText, h: h, s: tr.cells[2].innerText, b: b });
+        });
+        document.getElementById('totalH').innerText = th.toFixed(1);
+        document.getElementById('totalB').innerText = tb;
+        updateGoalBar();
+        localStorage.setItem(key, JSON.stringify(data));
+        if (currentUser) await setDoc(doc(db, "users", currentUser.uid, "reports", key), { entries: data });
+    }
+
+    async function loadMonthlyData() {
+        const m = document.getElementById('selMonth').value;
+        const y = document.getElementById('selYear').value;
+        const key = `work_${y}_${m}`;
+        let data = JSON.parse(localStorage.getItem(key) || '[]');
+        if (currentUser) {
+            const docRef = doc(db, "users", currentUser.uid, "reports", key);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) data = docSnap.data().entries;
+        }
+        const tbody = document.getElementById('workTableBody');
+        tbody.innerHTML = '';
+        let th = 0, tb = 0;
+        data.forEach(x => {
+            th += x.h; tb += x.b;
+            const row = tbody.insertRow();
+            row.innerHTML = `<td>${x.d}</td><td>${x.h}h</td><td>${x.s}</td><td>${x.b}</td><td><button class="delBtn" style="background:red; padding:2px 8px;">✕</button></td>`;
+            row.querySelector('.delBtn').onclick = () => { row.remove(); saveWork(); };
+        });
+        document.getElementById('totalH').innerText = th.toFixed(1);
+        document.getElementById('totalB').innerText = tb;
+        updateGoalBar();
+    }
+
+    window.toggleDark = () => {
+        document.body.classList.toggle('dark-mode');
+        localStorage.setItem('dark', document.body.classList.contains('dark-mode'));
+    };
+
+    function updateGoalBar() {
+        const goal = parseFloat(localStorage.getItem('u_goal') || 0);
+        const current = parseFloat(document.getElementById('totalH').innerText);
+        document.getElementById('goalLabel').innerText = goal;
+        const percent = goal > 0 ? Math.min((current / goal) * 100, 100) : 0;
+        document.getElementById('progressBar').style.width = percent + "%";
+    }
+
+    document.getElementById('setGoalBtn').onclick = () => {
+        const g = prompt("Set Monthly Goal (Hours):", "70");
+        if(g) { localStorage.setItem('u_goal', g); updateGoalBar(); }
+    };
+
+    document.getElementById('addWorkBtn').onclick = () => {
+        const d = document.getElementById('workDate').value;
+        const h = document.getElementById('workHrs').value || 0;
+        const checks = document.querySelectorAll('input[name="studentCheck"]:checked');
+        const names = Array.from(checks).map(c => c.value);
+        if(!d) return alert("Select Date");
+        const tbody = document.getElementById('workTableBody');
+        const row = tbody.insertRow(0);
+        row.innerHTML = `<td>${d}</td><td>${h}h</td><td>${names.join(', ') || 'General'}</td><td>${names.length}</td><td><button class="delBtn" style="background:red; padding:2px 8px;">✕</button></td>`;
+        row.querySelector('.delBtn').onclick = () => { row.remove(); saveWork(); };
+        saveWork();
+        checks.forEach(c => c.checked = false);
+    };
+
+    window.onload = () => {
+        const now = new Date();
+        const mSel = document.getElementById('selMonth');
+        MONTHS.forEach((m, i) => { mSel.add(new Option(m, i)); });
+        mSel.value = now.getMonth();
+        const ySel = document.getElementById('selYear');
+        [now.getFullYear()-1, now.getFullYear(), now.getFullYear()+1].forEach(y => { ySel.add(new Option(y, y)); });
+        ySel.value = now.getFullYear();
+        document.getElementById('workDate').valueAsDate = now;
+        if(localStorage.getItem('dark') === 'true') document.body.classList.add('dark-mode');
+        loadMonthlyData();
+        loadDirectory();
+        updateDropdown();
+        mSel.onchange = loadMonthlyData;
+        ySel.onchange = () => { loadMonthlyData(); updateYearlySummary(); };
+    };
+
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            const targetPage = btn.dataset.page;
+            document.getElementById(targetPage + 'Page').classList.add('active');
+            btn.classList.add('active');
+            if(targetPage === 'summary') updateYearlySummary();
+        };
+    });
+
+    function updateDropdown() {
+        const container = document.getElementById('checklistContent');
+        const students = JSON.parse(localStorage.getItem('u_dir') || '[]');
+        container.innerHTML = students.map(s => `<div class="checklist-item"><label><input type="checkbox" name="studentCheck" value="${s.n}"> ${s.n}</label></div>`).join('');
+    }
+</script>
+</body>
+</html>
